@@ -34,7 +34,7 @@ Shifty shift;
 int song[INPUTS] = {};
 int midiChannel[INPUTS] = {};
 
-void drawbitmap();
+void drawbitmap(const unsigned char img[]);
 void drawGrid();
 
 void setup() {
@@ -63,13 +63,12 @@ void setup() {
     Serial.println(F("MPR121 connected 0x5A"));
   } 
 
-  drawbitmap(); 
+  drawbitmap(abLogo); 
   delay(2000);
   display.clearDisplay();
   display.display();
 
   drawGrid();
-
 
 }
 
@@ -103,13 +102,12 @@ void loop() {
 }
 
 
-void drawbitmap() {
+void drawbitmap(const unsigned char img[]) {  // Display Logo centered on screen
   display.clearDisplay();
-
   display.drawBitmap(
     (display.width()  - LOGO_WIDTH ) / 2,
     (display.height() - LOGO_HEIGHT) / 2,
-    abLogo, LOGO_WIDTH, LOGO_HEIGHT, 1);
+    img, LOGO_WIDTH, LOGO_HEIGHT, 1);
   display.display();
 }
 

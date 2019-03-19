@@ -51,6 +51,8 @@ DualFunctionButton button(encSw, 1000, INPUT_PULLUP);
 // Menu
 uint8_t page = 1;
 uint8_t menuitem = 0;
+uint8_t summarycount = 0;
+String displaytext;
 
 // Note names matched to MIDI value
 uint8_t midiAddress = INPUTS; //use address space after inputs
@@ -70,6 +72,7 @@ uint8_t volumes[INPUTS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100
 void isr();
 void drawbitmap(const unsigned char img[]);
 void updateDisplay();
+void displaytextcenter(String textstring, int fontsize, uint16_t textcolor, uint8_t yposition);
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -96,6 +99,9 @@ void setup() {
   // Shifty library
   shift.setBitCount(16);
   shift.setPins(ledDataPin, ledClockPin, ledLatchPin); // data, clk, latch
+  for (uint8_t i = 0; i < INPUTS; i++) {
+    shift.writeBit(i, LOW);
+  }
   if (DEBUG) {
     Serial.println("Testing LEDs");
     shift.writeBit(0, HIGH);
@@ -177,6 +183,12 @@ void loop() {
       volumes[menuitem]++;
       updateDisplay();
     }
+  } else if (up && page == 9) {
+    up = false;
+    if (summarycount < 8) {
+      summarycount = summarycount + 4;
+      updateDisplay();
+    }
   }
 
   // Rotary encoder down
@@ -202,6 +214,12 @@ void loop() {
     down = false;
     if (volumes[menuitem] > 1) {
       volumes[menuitem]--;
+      updateDisplay();
+    }
+  } else if (down && page == 9) {
+    down = false;
+    if (summarycount > 0) {
+      summarycount = summarycount - 4;
       updateDisplay();
     }
   }
@@ -250,6 +268,7 @@ void loop() {
       Serial.println("Long Press");
     }
     if (page == 1) {
+      summarycount = 0;
       page = 9;
     } else if (page == 2) {
       page = 3;
@@ -339,7 +358,7 @@ void updateDisplay() {
         count = (j+1)+(i*4);
         if (count == menuitem+1) {
           display.fillRect(j*(display.width()/4), i*(display.height()/3), (display.width())/4, (display.height())/3, WHITE);
-          display.setCursor(j*(display.width()/4) + 11 - ((count > 9) ? 6 : 0) , i*(display.height()/3) + 3);
+          display.setCursor(j*(display.width()/4) + 11 - ((count > 9) ? 6 : 0) , i*(display.height()/3) + 3);  //  11 = (display.width()/4 - fontWidth)/2, 3 = (display.height()/3 - fontHeight)/2
           display.setTextColor(BLACK);
           display.print(count);
         } else {
@@ -352,27 +371,25 @@ void updateDisplay() {
     }
   }
   else if (page==2) {
-    display.setCursor(19,3);
-    display.setTextColor(WHITE);
-    display.print("Switch:");
-    display.print(menuitem+1);
+    displaytext = "Switch:" + String(menuitem+1);
+    displaytextcenter(displaytext, 2, WHITE, 3);
 
-    display.drawRect(0, 13, display.width(), display.height()-13, WHITE);
-    uint8_t nameLength = strlen(strcpy_P(buffer, (char*)pgm_read_word(&(note_table[notes[menuitem]]))));
-    display.setCursor((display.width()-(nameLength*12))/2,23);  // (display.width() - (size*12)) /2  , ((48-14) -16) /2) + 14
-    display.setTextSize(2);
-    display.print(strcpy_P(buffer, (char*)pgm_read_word(&(note_table[notes[menuitem]]))));
+    display.drawRect(0, 20, display.width(), display.height()-20, WHITE);
+
+    displaytext = String(strcpy_P(buffer, (char*)pgm_read_word(&(note_table[notes[menuitem]]))));
+    displaytextcenter(displaytext, 3, WHITE, 32);  // 32 = 20 + (((display.height()-20) - 3*fontheight) / 2)
+
     display.setTextSize(1);
-    display.setCursor(3,30);
+    display.setCursor(3,46);
     display.print("Ch");
-    display.setCursor(3,38);
+    display.setCursor(3,54);
     if (midiChannels[menuitem] < 10) {
       display.print("0");
     }
     display.print(midiChannels[menuitem]);
-    display.setCursor(64,30);
+    display.setCursor(108,46);
     display.print("Vol");
-    display.setCursor(64,38);
+    display.setCursor(108,54);
 
     if (volumes[menuitem] < 100) {
       display.print(" ");
@@ -383,50 +400,50 @@ void updateDisplay() {
     display.print(volumes[menuitem]);
   }
   else if (page==3) {
-    display.setCursor(3,3);
-    display.setTextColor(WHITE);
-    // display.print("MIDI channel");
-    display.print("MIDI ch Sw: ");
-    display.print(menuitem+1);
-    display.drawRect(0, 13, display.width(), display.height()-13, WHITE);
-    display.setCursor(30,23);
-    display.setTextSize(2);
+    String displaytext = "MIDI Sw:" + String(menuitem+1);
+    displaytextcenter(displaytext, 2, WHITE, 3);
+
+    display.drawRect(0, 20, display.width(), display.height()-20, WHITE);
+
     if (midiChannels[menuitem] < 10) {
-      display.print("0");
+      displaytext = "0" + String(midiChannels[menuitem]);
+    } else {
+      displaytext = midiChannels[menuitem];
     }
-    display.print(midiChannels[menuitem]);
+    displaytextcenter(displaytext, 3, WHITE, 32);
   }
   else if (page==4) {
-    display.setCursor(6,3);
-    display.setTextColor(WHITE);
-    display.print("Volume Sw: ");
-    display.print(menuitem+1);
-    display.drawRect(0, 13, display.width(), display.height()-13, WHITE);
-    display.setCursor(24,23);
-    display.setTextSize(2);
-    if (volumes[menuitem] < 100) {
-      display.print("0");
-    }
+    displaytext = "Vol Sw:" + String(menuitem+1);
+    displaytextcenter(displaytext, 2, WHITE, 3);
+
+    display.drawRect(0, 20, display.width(), display.height()-20, WHITE);
+
     if (volumes[menuitem] < 10) {
-      display.print("0");
+      displaytext = "00" + String(volumes[menuitem]);
+    } else if (volumes[menuitem] < 100) {
+      displaytext = "0" + String(volumes[menuitem]);
+    } else {
+      displaytext = volumes[menuitem];
     }
-    display.print(volumes[menuitem]);
+    displaytextcenter(displaytext, 3, WHITE, 32);
   }
   else {
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(WHITE);
-    for (uint8_t i = 0; i < INPUTS; i++) {
-      display.setCursor(0,(i*8));
-      display.print(i);
-      display.setCursor(12,(i*8));
+    for (uint8_t i = summarycount; i < summarycount+4; i++) {
+      display.setCursor(0, (i % 4) * 8 * 2);
+      display.print(i+1);
 
+      display.setCursor(27 , (i % 4) * 8 * 2);
       display.print(strcpy_P(buffer, (char*)pgm_read_word(&(note_table[notes[i]]))));
-      display.setCursor(42,(i*8));
+
+      display.setCursor(67, (i % 4) * 8 * 2);
       if (midiChannels[i] < 10) {
         display.print("0");
       }
       display.print(midiChannels[i]);
-      display.setCursor(60,(i*8));
+ 
+      display.setCursor(92, (i % 4) * 8 * 2);
       if (volumes[i] < 100) {
         display.print(" ");
       }
@@ -437,4 +454,11 @@ void updateDisplay() {
     }
   }
   display.display();
+}
+
+void displaytextcenter(String textstring, int fontsize, uint16_t textcolor, uint8_t yposition) {
+  display.setTextSize(fontsize);
+  display.setTextColor(textcolor);
+  display.setCursor((display.width() - (textstring.length()*6*fontsize - fontsize))/2, yposition);  // 6 is font width
+  display.print(textstring);
 }

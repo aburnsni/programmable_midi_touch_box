@@ -4,7 +4,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_MPR121.h>
-#include <Shifty.h>
 #include <MIDI.h>
 #include <EEPROM.h>
 #include "DualFunctionButton.h"
@@ -31,11 +30,8 @@ uint16_t currtouched = 0;
 // Declaration for MIDI instance
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
-//Declaration for HC595 shift register
-Shifty shift; 
-const uint8_t ledClockPin = 10;  // HC595 pin 11
-const uint8_t ledLatchPin = 11;  // HC595 pin 12
-const uint8_t ledDataPin = 12;   // HC595 pin 14
+// LED pins
+const uint8_t ledPin[12] = {28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50};
 
 // Rotary Encoder variables
 const uint8_t encClk = 2; // Needs Interupt pin
@@ -77,6 +73,10 @@ void displaytextcenter(String textstring, int fontsize, uint16_t textcolor, uint
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+  for (uint8_t i = 0; i < INPUTS; i++) {
+    pinMode(ledPin[i], OUTPUT);
+    digitalWrite(ledPin[i], LOW);
+  }
   MIDI.begin();
   Serial.begin(115200);
 
@@ -94,23 +94,6 @@ void setup() {
     while (1);
   } else if(DEBUG) {
     Serial.println(F("MPR121 connected 0x5A"));
-  } 
-
-  // Shifty library
-  shift.setBitCount(16);
-  shift.setPins(ledDataPin, ledClockPin, ledLatchPin); // data, clk, latch
-  for (uint8_t i = 0; i < INPUTS; i++) {
-    shift.writeBit(i, LOW);
-  }
-  if (DEBUG) {
-    Serial.println("Testing LEDs");
-    shift.writeBit(0, HIGH);
-    delay(500);
-    shift.writeBit(8, HIGH);
-    delay(500);
-    shift.writeBit(0,LOW);
-    delay(500);
-    shift.writeBit(8,LOW);
   }
 
   //read EEPROM values
@@ -283,7 +266,7 @@ void loop() {
   for (uint8_t i = 0; i < INPUTS; i++) {
     // it if *is* touched and *wasnt* touched before, alert!
     if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) ) {
-      shift.writeBit(i, HIGH);
+      digitalWrite(ledPin[i], HIGH);
       if (!DEBUG) {
         MIDI.sendNoteOn(notes[i], 100, midiChannels[i]);
       } else {
@@ -292,7 +275,7 @@ void loop() {
       }
     }
     if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
-      shift.writeBit(i, LOW);
+      digitalWrite(ledPin[i], LOW);
       if (!DEBUG) {
         MIDI.sendNoteOff(notes[i], 100, midiChannels[i]);
       } else {
